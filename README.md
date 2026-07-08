@@ -10,7 +10,7 @@ of free/moving-boundary problem Goma solves. It is **not** the solver itself
 — see [`web-gui/README.md`](web-gui/README.md) for exactly what it is and
 isn't.
 
-- **[Static demo (GitHub Pages)](https://timeout187.github.io/goma/web-gui/)**
+- **[Static demo](https://goma.timeout.nz/web-gui/)**
   — open it, no install, drag to orbit.
 - **Streamlit app** — `streamlit run web-gui/app.py` (see
   [`web-gui/README.md`](web-gui/README.md) for one-click Streamlit Community

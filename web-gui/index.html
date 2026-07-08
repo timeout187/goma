@@ -1,0 +1,752 @@
+<title>Goma — Free-Surface Flow Console</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<style>
+  :root {
+    --bg: #0a0e14;
+    --bg-2: #060809;
+    --panel: #121821;
+    --panel-2: #0e141c;
+    --border: #223041;
+    --border-soft: #1a2430;
+    --text: #dce6ef;
+    --text-dim: #8293a8;
+    --text-faint: #4a5a6c;
+    --accent: #ff8a3d;
+    --accent-dim: #8a5228;
+    --accent-glow: rgba(255, 138, 61, 0.35);
+    --face-display: "Bahnschrift", "SF Compact Display", "Segoe UI Semibold", system-ui, sans-serif;
+    --face-body: -apple-system, "Segoe UI", system-ui, sans-serif;
+    --face-mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--face-body);
+    height: 100%;
+  }
+
+  body {
+    background-image:
+      radial-gradient(ellipse at 20% -10%, rgba(255, 138, 61, 0.06), transparent 45%),
+      radial-gradient(ellipse at 100% 110%, rgba(90, 140, 255, 0.05), transparent 50%);
+  }
+
+  .console {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 20px 40px;
+  }
+
+  /* ---------- Nameplate ---------- */
+
+  .nameplate {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .nameplate .id {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: baseline;
+  }
+
+  .nameplate .id .mark {
+    font-family: var(--face-display);
+    font-weight: 700;
+    font-size: 1.7rem;
+    letter-spacing: 0.02em;
+    color: var(--text);
+  }
+
+  .nameplate .id .mark span { color: var(--accent); }
+
+  .nameplate .id .sub {
+    font-family: var(--face-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-left: 1px solid var(--border);
+    padding-left: 12px;
+  }
+
+  .nameplate .tag {
+    font-family: var(--face-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    text-align: right;
+    line-height: 1.5;
+  }
+
+  .nameplate .tag strong { color: var(--accent-dim); }
+
+  /* ---------- Layout ---------- */
+
+  .rig {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 18px;
+  }
+
+  @media (max-width: 860px) {
+    .rig { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  /* ---------- Controls ---------- */
+
+  .controls {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .controls h2 {
+    font-family: var(--face-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 0 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .dial { margin-bottom: 14px; }
+  .dial:last-child { margin-bottom: 0; }
+
+  .dial-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+
+  .dial-label {
+    font-size: 0.78rem;
+    color: var(--text);
+    letter-spacing: 0.01em;
+  }
+
+  .dial-value {
+    font-family: var(--face-mono);
+    font-size: 0.78rem;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-soft);
+    outline: none;
+    margin: 0;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg-2);
+    box-shadow: 0 0 0 1px var(--accent-dim);
+    cursor: pointer;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg-2);
+    box-shadow: 0 0 0 1px var(--accent-dim);
+    cursor: pointer;
+  }
+
+  input[type="range"]:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font-family: var(--face-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+    flex: 1 1 auto;
+  }
+
+  button:hover { border-color: var(--accent-dim); color: var(--accent); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  button.primary {
+    background: var(--accent-dim);
+    border-color: var(--accent-dim);
+    color: #1a0f04;
+    font-weight: 600;
+  }
+
+  button.primary:hover { border-color: var(--accent); color: #1a0f04; background: var(--accent); }
+
+  .lamp {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  .lamp.on { background: #57e389; box-shadow: 0 0 6px #57e38966; }
+
+  /* ---------- Viewport ---------- */
+
+  .viewport-wrap { display: flex; flex-direction: column; }
+
+  .viewport-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .viewport-head h2 {
+    font-family: var(--face-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 0;
+  }
+
+  .viewport-head .hint {
+    font-family: var(--face-mono);
+    font-size: 0.66rem;
+    color: var(--text-faint);
+  }
+
+  .stage {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    background:
+      linear-gradient(var(--bg-2), var(--bg-2));
+    overflow: hidden;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .stage.dragging { cursor: grabbing; }
+
+  .stage svg { width: 100%; height: 100%; display: block; }
+
+  /* ---------- Readout strip ---------- */
+
+  .readouts {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .readout {
+    background: var(--panel);
+    padding: 12px 16px;
+  }
+
+  .readout .k {
+    font-family: var(--face-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 4px;
+  }
+
+  .readout .v {
+    font-family: var(--face-mono);
+    font-size: 1.05rem;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .readout .v .unit {
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    margin-left: 3px;
+  }
+
+  .footnote {
+    margin-top: 18px;
+    font-family: var(--face-mono);
+    font-size: 0.68rem;
+    line-height: 1.7;
+    color: var(--text-faint);
+  }
+
+  .footnote a { color: var(--text-dim); }
+
+  @media (prefers-reduced-motion: reduce) {
+    button, input[type="range"]::-webkit-slider-thumb { transition: none; }
+  }
+</style>
+
+<div class="console">
+  <div class="nameplate">
+    <div class="id">
+      <div class="mark">GOMA<span>·</span>FSF</div>
+      <div class="sub">Free-Surface Film Flow — Preview Console</div>
+    </div>
+    <div class="tag">
+      companion visualization, <strong>not</strong> solver output<br />
+      real thing lives at gomafem.com
+    </div>
+  </div>
+
+  <div class="rig">
+    <div class="panel controls">
+      <div>
+        <h2>Process parameters</h2>
+        <div class="dial">
+          <div class="dial-head">
+            <span class="dial-label">Flow rate Q</span>
+            <span class="dial-value" id="v-flow">0.50</span>
+          </div>
+          <input type="range" id="flow" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+        <div class="dial">
+          <div class="dial-head">
+            <span class="dial-label">Viscosity μ</span>
+            <span class="dial-value" id="v-visc">0.40</span>
+          </div>
+          <input type="range" id="visc" min="0.02" max="1" step="0.01" value="0.4" />
+        </div>
+        <div class="dial">
+          <div class="dial-head">
+            <span class="dial-label">Surface tension σ</span>
+            <span class="dial-value" id="v-tens">0.50</span>
+          </div>
+          <input type="range" id="tens" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+        <div class="dial">
+          <div class="dial-head">
+            <span class="dial-label">Contact angle θ</span>
+            <span class="dial-value" id="v-cang">0.50</span>
+          </div>
+          <input type="range" id="cang" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+      </div>
+
+      <div>
+        <h2>Run state</h2>
+        <div class="btn-row">
+          <button id="btn-play" class="primary"><span class="lamp on" id="lamp"></span>Pause</button>
+          <button id="btn-reset-cam">Reset view</button>
+        </div>
+        <div class="btn-row" style="margin-top:8px;">
+          <button id="btn-reset-params">Reset params</button>
+          <button id="btn-export">Save SVG frame</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel viewport-wrap">
+      <div class="viewport-head">
+        <h2>Mesh viewport</h2>
+        <span class="hint">drag to orbit · scroll to zoom</span>
+      </div>
+      <div class="stage" id="stage">
+        <svg id="scene" viewBox="0 0 900 560" preserveAspectRatio="xMidYMid meet">
+          <g id="grid-layer"></g>
+          <g id="mesh-layer"></g>
+          <g id="axis-layer"></g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="readouts">
+      <div class="readout">
+        <div class="k">Mean film height</div>
+        <div class="v"><span id="r-height">0.00</span><span class="unit">mm</span></div>
+      </div>
+      <div class="readout">
+        <div class="k">Wave speed</div>
+        <div class="v"><span id="r-speed">0.00</span><span class="unit">mm/s</span></div>
+      </div>
+      <div class="readout">
+        <div class="k">Capillary number</div>
+        <div class="v"><span id="r-ca">0.00</span><span class="unit">Ca</span></div>
+      </div>
+      <div class="readout">
+        <div class="k">Reynolds number</div>
+        <div class="v"><span id="r-re">0.00</span><span class="unit">Re</span></div>
+      </div>
+      <div class="readout">
+        <div class="k">Mesh elements</div>
+        <div class="v"><span id="r-elems">0</span></div>
+      </div>
+      <div class="readout">
+        <div class="k">Frame time</div>
+        <div class="v"><span id="r-ft">0.0</span><span class="unit">ms</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    This page renders an illustrative traveling-wave heightfield shaped by the sliders above —
+    it is <strong>not</strong> connected to Goma's actual Newton/FEM solver or to real Exodus output.
+    It's a stand-in for the "see the physics move" GUI, built to sit alongside the real
+    program while a proper results viewer (reading actual Goma output files) is scoped.
+    See <a href="../BUILD.md">BUILD.md</a> for building the real solver.
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var svgNS = "http://www.w3.org/2000/svg";
+  var scene = document.getElementById("scene");
+  var meshLayer = document.getElementById("mesh-layer");
+  var gridLayer = document.getElementById("grid-layer");
+  var axisLayer = document.getElementById("axis-layer");
+  var stage = document.getElementById("stage");
+
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var params = { flow: 0.5, visc: 0.4, tens: 0.5, cang: 0.5 };
+  var camera = { azimuth: -0.55, elevation: 0.62, distance: 5.2 };
+  var defaultCamera = { azimuth: -0.55, elevation: 0.62, distance: 5.2 };
+
+  var NX = 26, NZ = 12;
+  var W = 900, H = 560, CX = W / 2, CY = H / 2 + 40;
+  var FOCAL = 5.5;
+  var VIEW_SCALE = 210;
+
+  var verts = [];
+  for (var i = 0; i <= NX; i++) {
+    for (var j = 0; j <= NZ; j++) {
+      verts.push({
+        i: i, j: j,
+        x: (i / NX) * 2 - 1,
+        z: (j / NZ) - 0.5,
+        y: 0
+      });
+    }
+  }
+  function vIndex(i, j) { return i * (NZ + 1) + j; }
+
+  var quads = [];
+  for (var qi = 0; qi < NX; qi++) {
+    for (var qj = 0; qj < NZ; qj++) {
+      quads.push([
+        vIndex(qi, qj), vIndex(qi + 1, qj),
+        vIndex(qi + 1, qj + 1), vIndex(qi, qj + 1)
+      ]);
+    }
+  }
+
+  var polys = quads.map(function () {
+    var p = document.createElementNS(svgNS, "polygon");
+    p.setAttribute("stroke", "rgba(6,9,10,0.55)");
+    p.setAttribute("stroke-width", "0.6");
+    meshLayer.appendChild(p);
+    return p;
+  });
+
+  document.getElementById("r-elems").textContent = quads.length;
+
+  var basePath = document.createElementNS(svgNS, "path");
+  basePath.setAttribute("stroke", "rgba(130,147,168,0.35)");
+  basePath.setAttribute("stroke-dasharray", "3 4");
+  basePath.setAttribute("fill", "none");
+  gridLayer.appendChild(basePath);
+
+  var flowArrow = document.createElementNS(svgNS, "path");
+  flowArrow.setAttribute("stroke", "var(--accent-dim)");
+  flowArrow.setAttribute("stroke-width", "1.4");
+  flowArrow.setAttribute("fill", "none");
+  flowArrow.setAttribute("marker-end", "url(#arrowhead)");
+  axisLayer.appendChild(flowArrow);
+
+  var defs = document.createElementNS(svgNS, "defs");
+  defs.innerHTML =
+    '<marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">' +
+    '<path d="M0,0 L6,3 L0,6 Z" fill="#ff8a3d"></path></marker>';
+  scene.insertBefore(defs, scene.firstChild);
+
+  var flowLabel = document.createElementNS(svgNS, "text");
+  flowLabel.setAttribute("fill", "#8293a8");
+  flowLabel.setAttribute("font-family", "ui-monospace, monospace");
+  flowLabel.setAttribute("font-size", "12");
+  flowLabel.textContent = "flow →";
+  axisLayer.appendChild(flowLabel);
+
+  function project(x, y, z) {
+    var ca = Math.cos(camera.azimuth), sa = Math.sin(camera.azimuth);
+    var x1 = x * ca + z * sa;
+    var z1 = -x * sa + z * ca;
+    var ce = Math.cos(camera.elevation), se = Math.sin(camera.elevation);
+    var y2 = y * ce - z1 * se;
+    var z2 = y * se + z1 * ce + camera.distance;
+    var scale = FOCAL / Math.max(z2, 0.2);
+    return {
+      sx: CX + x1 * scale * VIEW_SCALE,
+      sy: CY - y2 * scale * VIEW_SCALE,
+      depth: z2
+    };
+  }
+
+  var colorStops = [
+    [0.00, [43, 108, 176]],
+    [0.30, [56, 178, 172]],
+    [0.55, [236, 201, 75]],
+    [0.78, [226, 112, 58]],
+    [1.00, [192, 57, 43]]
+  ];
+  function colorFor(t) {
+    t = Math.max(0, Math.min(1, t));
+    for (var k = 0; k < colorStops.length - 1; k++) {
+      var a = colorStops[k], b = colorStops[k + 1];
+      if (t >= a[0] && t <= b[0]) {
+        var f = (t - a[0]) / (b[0] - a[0] || 1);
+        var r = Math.round(a[1][0] + (b[1][0] - a[1][0]) * f);
+        var g = Math.round(a[1][1] + (b[1][1] - a[1][1]) * f);
+        var bl = Math.round(a[1][2] + (b[1][2] - a[1][2]) * f);
+        return "rgb(" + r + "," + g + "," + bl + ")";
+      }
+    }
+    return "rgb(192,57,43)";
+  }
+
+  function heightAt(x, z, t) {
+    var mu = params.visc, sigma = params.tens, Q = params.flow, theta = params.cang;
+    var speed = 0.25 + 0.65 * Q;
+    var damp1 = Math.exp(-mu * 2.1);
+    var damp2 = (1 - sigma) * 0.85 + 0.05;
+    var wave1 = 0.16 * damp1 * Math.sin(2 * Math.PI * (x * 1.15 - t * speed));
+    var wave2 = 0.07 * damp2 * Math.sin(2 * Math.PI * (x * 2.6 - t * speed * 1.35));
+    var edge = Math.cosh(z * 2.4) - 1;
+    var wetSign = (theta - 0.5) * 2;
+    var meniscus = -0.10 * wetSign * (1 - sigma * 0.6) * edge / 3.0;
+    var mean = 0.10 + 0.16 * Q;
+    return mean + wave1 + wave2 + meniscus;
+  }
+
+  var running = !reduceMotion;
+  var lastT = performance.now();
+  var simTime = 0;
+  var frameMs = 0;
+
+  function render(now) {
+    var dt = Math.min(0.05, (now - lastT) / 1000);
+    lastT = now;
+    if (running) simTime += dt;
+
+    var t0 = performance.now();
+
+    var minH = Infinity, maxH = -Infinity;
+    for (var v = 0; v < verts.length; v++) {
+      var vt = verts[v];
+      vt.y = heightAt(vt.x, vt.z, simTime);
+      if (vt.y < minH) minH = vt.y;
+      if (vt.y > maxH) maxH = vt.y;
+      var pr = project(vt.x, vt.y, vt.z);
+      vt.sx = pr.sx; vt.sy = pr.sy; vt.depth = pr.depth;
+    }
+
+    var order = quads.map(function (_, idx) { return idx; });
+    order.sort(function (a, b) {
+      var qa = quads[a], qb = quads[b];
+      var da = (verts[qa[0]].depth + verts[qa[2]].depth) / 2;
+      var db = (verts[qb[0]].depth + verts[qb[2]].depth) / 2;
+      return db - da;
+    });
+
+    var frag = document.createDocumentFragment();
+    for (var k = 0; k < order.length; k++) {
+      var qidx = order[k];
+      var q = quads[qidx];
+      var p0 = verts[q[0]], p1 = verts[q[1]], p2 = verts[q[2]], p3 = verts[q[3]];
+      var avgH = (p0.y + p1.y + p2.y + p3.y) / 4;
+      var norm = (avgH - minH) / Math.max(0.001, (maxH - minH));
+      var poly = polys[qidx];
+      poly.setAttribute("points",
+        p0.sx.toFixed(1) + "," + p0.sy.toFixed(1) + " " +
+        p1.sx.toFixed(1) + "," + p1.sy.toFixed(1) + " " +
+        p2.sx.toFixed(1) + "," + p2.sy.toFixed(1) + " " +
+        p3.sx.toFixed(1) + "," + p3.sy.toFixed(1)
+      );
+      poly.setAttribute("fill", colorFor(norm));
+      frag.appendChild(poly);
+    }
+    meshLayer.appendChild(frag);
+
+    var c00 = project(-1, 0, -0.5), c10 = project(1, 0, -0.5);
+    var c11 = project(1, 0, 0.5), c01 = project(-1, 0, 0.5);
+    basePath.setAttribute("d",
+      "M" + c00.sx.toFixed(1) + "," + c00.sy.toFixed(1) +
+      " L" + c10.sx.toFixed(1) + "," + c10.sy.toFixed(1) +
+      " L" + c11.sx.toFixed(1) + "," + c11.sy.toFixed(1) +
+      " L" + c01.sx.toFixed(1) + "," + c01.sy.toFixed(1) + " Z"
+    );
+
+    var aStart = project(-1.05, maxH + 0.05, -0.62);
+    var aEnd = project(-0.55, maxH + 0.05, -0.62);
+    flowArrow.setAttribute("d",
+      "M" + aStart.sx.toFixed(1) + "," + aStart.sy.toFixed(1) +
+      " L" + aEnd.sx.toFixed(1) + "," + aEnd.sy.toFixed(1)
+    );
+    flowLabel.setAttribute("x", (aEnd.sx + 6).toFixed(1));
+    flowLabel.setAttribute("y", (aEnd.sy + 4).toFixed(1));
+
+    var speed = 0.25 + 0.65 * params.flow;
+    var Ca = (params.visc * (0.2 + speed)) / Math.max(0.02, params.tens);
+    var Re = (1000 * (0.2 + speed) * (0.10 + 0.16 * params.flow)) / Math.max(0.02, params.visc * 8);
+
+    document.getElementById("r-height").textContent = ((0.10 + 0.16 * params.flow) * 10).toFixed(2);
+    document.getElementById("r-speed").textContent = (speed * 8).toFixed(2);
+    document.getElementById("r-ca").textContent = Ca.toFixed(3);
+    document.getElementById("r-re").textContent = Re.toFixed(1);
+
+    frameMs = frameMs * 0.9 + (performance.now() - t0) * 0.1;
+    document.getElementById("r-ft").textContent = frameMs.toFixed(1);
+
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+
+  function bindSlider(id, key, out, digits) {
+    var el = document.getElementById(id);
+    var label = document.getElementById(out);
+    el.addEventListener("input", function () {
+      params[key] = parseFloat(el.value);
+      label.textContent = params[key].toFixed(digits === undefined ? 2 : digits);
+    });
+  }
+  bindSlider("flow", "flow", "v-flow");
+  bindSlider("visc", "visc", "v-visc");
+  bindSlider("tens", "tens", "v-tens");
+  bindSlider("cang", "cang", "v-cang");
+
+  var playBtn = document.getElementById("btn-play");
+  var lamp = document.getElementById("lamp");
+  playBtn.addEventListener("click", function () {
+    running = !running;
+    lastT = performance.now();
+    playBtn.innerHTML = running
+      ? '<span class="lamp on" id="lamp"></span>Pause'
+      : '<span class="lamp" id="lamp"></span>Run';
+  });
+
+  document.getElementById("btn-reset-cam").addEventListener("click", function () {
+    camera.azimuth = defaultCamera.azimuth;
+    camera.elevation = defaultCamera.elevation;
+    camera.distance = defaultCamera.distance;
+  });
+
+  document.getElementById("btn-reset-params").addEventListener("click", function () {
+    params = { flow: 0.5, visc: 0.4, tens: 0.5, cang: 0.5 };
+    document.getElementById("flow").value = 0.5;
+    document.getElementById("visc").value = 0.4;
+    document.getElementById("tens").value = 0.5;
+    document.getElementById("cang").value = 0.5;
+    document.getElementById("v-flow").textContent = "0.50";
+    document.getElementById("v-visc").textContent = "0.40";
+    document.getElementById("v-tens").textContent = "0.50";
+    document.getElementById("v-cang").textContent = "0.50";
+  });
+
+  document.getElementById("btn-export").addEventListener("click", function () {
+    var clone = scene.cloneNode(true);
+    clone.setAttribute("xmlns", svgNS);
+    var style = document.createElementNS(svgNS, "style");
+    style.textContent = "text{font-family:ui-monospace,monospace;}";
+    clone.insertBefore(style, clone.firstChild);
+    var rect = document.createElementNS(svgNS, "rect");
+    rect.setAttribute("x", "0"); rect.setAttribute("y", "0");
+    rect.setAttribute("width", String(W)); rect.setAttribute("height", String(H));
+    rect.setAttribute("fill", "#060809");
+    clone.insertBefore(rect, clone.firstChild.nextSibling);
+
+    var serializer = new XMLSerializer();
+    var src = '<?xml version="1.0" standalone="no"?>\n' + serializer.serializeToString(clone);
+    var blob = new Blob([src], { type: "image/svg+xml" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "goma-fsf-frame-" + Date.now() + ".svg";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  });
+
+  var dragging = false, lastX = 0, lastY = 0;
+  stage.addEventListener("pointerdown", function (e) {
+    dragging = true;
+    stage.classList.add("dragging");
+    lastX = e.clientX; lastY = e.clientY;
+    stage.setPointerCapture(e.pointerId);
+  });
+  stage.addEventListener("pointermove", function (e) {
+    if (!dragging) return;
+    var dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    camera.azimuth += dx * 0.006;
+    camera.elevation = Math.max(0.12, Math.min(1.45, camera.elevation - dy * 0.006));
+  });
+  stage.addEventListener("pointerup", function (e) {
+    dragging = false;
+    stage.classList.remove("dragging");
+    stage.releasePointerCapture(e.pointerId);
+  });
+  stage.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    camera.distance = Math.max(2.8, Math.min(9, camera.distance + e.deltaY * 0.003));
+  }, { passive: false });
+})();
+</script>

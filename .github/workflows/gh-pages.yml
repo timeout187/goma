@@ -24,11 +24,17 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --locked 
+          uv sync --locked
 
       - run: |
           cd docs
           uv run make github
+
+      - name: Publish web-gui demo, drop upstream's custom domain
+        run: |
+          rm -f docs/site/CNAME
+          mkdir -p docs/site/web-gui
+          cp web-gui/index.html docs/site/web-gui/index.html
 
       - name: Upload static files as artifact
         id: deployment

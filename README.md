@@ -3,6 +3,20 @@ A Full-Newton Finite Element Program for Free and Moving Boundary Problems with 
 
 For more information see the [Goma website](https://www.gomafem.com)
 
+## Web GUI preview console
+
+This fork adds a companion GUI with an animated 3D visualization of the kind
+of free/moving-boundary problem Goma solves. It is **not** the solver itself
+— see [`web-gui/README.md`](web-gui/README.md) for exactly what it is and
+isn't.
+
+- **[Static demo (GitHub Pages)](https://timeout187.github.io/goma/web-gui/)**
+  — open it, no install, drag to orbit.
+- **Streamlit app** — `streamlit run web-gui/app.py` (see
+  [`web-gui/README.md`](web-gui/README.md) for one-click Streamlit Community
+  Cloud hosting).
+- **[Wiki](../../wiki)** — guide to the console's controls.
+
 ## Documentation
 
 Most of the documentation can be found at [https://www.gomafem.com/documentation.html](https://www.gomafem.com/documentation.html)

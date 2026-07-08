@@ -1,9 +1,16 @@
 # Goma web GUI (preview console)
 
-A single self-contained page (`index.html`, no build step, no dependencies) that
-gives Goma a graphical front end: slider controls plus an animated, orbitable
-3D SVG of a free-surface film flow — the kind of moving-boundary problem Goma
-is built to solve.
+Two companion front ends for Goma, both driven by the same illustrative
+free-surface film-flow model:
+
+- **`index.html`** — a single self-contained page (no build step, no
+  dependencies): slider controls plus a hand-built, orbitable 3D SVG of a
+  free-surface film flow — the kind of moving-boundary problem Goma is built
+  to solve.
+- **`app.py`** — the same idea as a Streamlit app, using an interactive
+  Plotly 3D surface with its own Play/Pause/scrub controls.
+
+## `index.html` — zero install
 
 Open it directly in a browser:
 
@@ -13,6 +20,19 @@ xdg-open web-gui/index.html  # Linux
 ```
 
 No server, no `pnpm`/`npm`, no compilation.
+
+## `app.py` — Streamlit version
+
+```bash
+pip install -r web-gui/requirements.txt
+streamlit run web-gui/app.py
+```
+
+To host it live on Streamlit Community Cloud: sign in at
+[share.streamlit.io](https://share.streamlit.io), "New app", point it at
+this repo/branch with main file path `web-gui/app.py`. (This is a one-time
+manual step tied to a Streamlit account — not something that can be done
+from the repo itself.)
 
 ## What it is (and isn't)
 

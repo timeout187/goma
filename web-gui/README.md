@@ -1,14 +1,18 @@
 # Goma web GUI (preview console)
 
-Two companion front ends for Goma, both driven by the same illustrative
-free-surface film-flow model:
+Two companion front ends for Goma, covering two of the classic
+free/moving-boundary problem classes Goma solves:
 
 - **`index.html`** — a single self-contained page (no build step, no
-  dependencies): slider controls plus a hand-built, orbitable 3D SVG of a
-  free-surface film flow — the kind of moving-boundary problem Goma is built
-  to solve.
-- **`app.py`** — the same idea as a Streamlit app, using an interactive
-  Plotly 3D surface with its own Play/Pause/scrub controls.
+  dependencies): slider controls plus a hand-built, orbitable 3D SVG mesh,
+  with a **Problem type** switch between:
+  - **Thin Film Flow** — a free-surface coating-flow film, height shaped by
+    flow rate, viscosity, surface tension, and contact angle.
+  - **Sessile Droplet** — a wetting/contact-angle problem: a droplet's
+    spherical-cap shape (footprint radius, cap height) driven by volume,
+    viscosity, surface tension, and contact angle.
+- **`app.py`** — the Thin Film Flow model as a Streamlit app, using an
+  interactive Plotly 3D surface with its own Play/Pause/scrub controls.
 
 ## `index.html` — zero install
 
@@ -36,14 +40,15 @@ from the repo itself.)
 
 ## What it is (and isn't)
 
-- **Is:** a real, working GUI — process-parameter sliders (flow rate,
-  viscosity, surface tension, contact angle), a live 3D mesh you can drag to
-  orbit and scroll to zoom, a readout strip with derived Capillary/Reynolds
-  numbers, and a "Save SVG frame" button that exports the current view as a
-  standalone vector file.
-- **Isn't:** wired to Goma's actual Newton solver. The surface you see is an
-  illustrative traveling-wave heightfield shaped by the sliders, not a real
-  finite-element solve, and it doesn't read Goma's `.exoII`/ASCII output.
+- **Is:** a real, working GUI — process-parameter sliders, a live 3D mesh
+  you can drag to orbit and scroll to zoom, a readout strip with derived
+  numbers (Capillary/Reynolds for the film, footprint/cap height/Bond number
+  for the droplet), and a "Save SVG frame" button that exports the current
+  view as a standalone vector file.
+- **Isn't:** wired to Goma's actual Newton solver. Both surfaces are
+  illustrative — a traveling-wave heightfield for the film, a spherical-cap
+  approximation for the droplet — not a real finite-element solve, and
+  neither reads Goma's `.exoII`/ASCII output.
 
 ## Why it's built this way
 

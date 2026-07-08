@@ -1,4 +1,4 @@
-<title>Goma — Free-Surface Flow Console</title>
+<title>Goma — Moving-Boundary Preview Console</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <style>
@@ -208,7 +208,7 @@
     border-radius: 4px;
     padding: 8px 10px;
     cursor: pointer;
-    transition: border-color 0.15s ease, color 0.15s ease;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
     flex: 1 1 auto;
   }
 
@@ -337,8 +337,8 @@
 <div class="console">
   <div class="nameplate">
     <div class="id">
-      <div class="mark">GOMA<span>·</span>FSF</div>
-      <div class="sub">Free-Surface Film Flow — Preview Console</div>
+      <div class="mark">GOMA<span>·</span><span id="mode-tag">FSF</span></div>
+      <div class="sub" id="mode-sub">Free-Surface Film Flow — Preview Console</div>
     </div>
     <div class="tag">
       companion visualization, <strong>not</strong> solver output<br />
@@ -349,31 +349,39 @@
   <div class="rig">
     <div class="panel controls">
       <div>
+        <h2>Problem type</h2>
+        <div class="btn-row">
+          <button id="mode-film" class="primary" aria-pressed="true">Thin Film Flow</button>
+          <button id="mode-drop" aria-pressed="false">Sessile Droplet</button>
+        </div>
+      </div>
+
+      <div>
         <h2>Process parameters</h2>
         <div class="dial">
           <div class="dial-head">
-            <span class="dial-label">Flow rate Q</span>
+            <span class="dial-label" id="lbl-flow">Flow rate Q</span>
             <span class="dial-value" id="v-flow">0.50</span>
           </div>
           <input type="range" id="flow" min="0" max="1" step="0.01" value="0.5" />
         </div>
         <div class="dial">
           <div class="dial-head">
-            <span class="dial-label">Viscosity μ</span>
+            <span class="dial-label" id="lbl-visc">Viscosity μ</span>
             <span class="dial-value" id="v-visc">0.40</span>
           </div>
           <input type="range" id="visc" min="0.02" max="1" step="0.01" value="0.4" />
         </div>
         <div class="dial">
           <div class="dial-head">
-            <span class="dial-label">Surface tension σ</span>
+            <span class="dial-label" id="lbl-tens">Surface tension σ</span>
             <span class="dial-value" id="v-tens">0.50</span>
           </div>
           <input type="range" id="tens" min="0" max="1" step="0.01" value="0.5" />
         </div>
         <div class="dial">
           <div class="dial-head">
-            <span class="dial-label">Contact angle θ</span>
+            <span class="dial-label" id="lbl-cang">Contact angle θ</span>
             <span class="dial-value" id="v-cang">0.50</span>
           </div>
           <input type="range" id="cang" min="0" max="1" step="0.01" value="0.5" />
@@ -409,20 +417,20 @@
 
     <div class="readouts">
       <div class="readout">
-        <div class="k">Mean film height</div>
-        <div class="v"><span id="r-height">0.00</span><span class="unit">mm</span></div>
+        <div class="k" id="k1">Mean film height</div>
+        <div class="v"><span id="r1">0.00</span><span class="unit" id="u1">mm</span></div>
       </div>
       <div class="readout">
-        <div class="k">Wave speed</div>
-        <div class="v"><span id="r-speed">0.00</span><span class="unit">mm/s</span></div>
+        <div class="k" id="k2">Wave speed</div>
+        <div class="v"><span id="r2">0.00</span><span class="unit" id="u2">mm/s</span></div>
       </div>
       <div class="readout">
-        <div class="k">Capillary number</div>
-        <div class="v"><span id="r-ca">0.00</span><span class="unit">Ca</span></div>
+        <div class="k" id="k3">Capillary number</div>
+        <div class="v"><span id="r3">0.00</span><span class="unit" id="u3">Ca</span></div>
       </div>
       <div class="readout">
-        <div class="k">Reynolds number</div>
-        <div class="v"><span id="r-re">0.00</span><span class="unit">Re</span></div>
+        <div class="k" id="k4">Reynolds number</div>
+        <div class="v"><span id="r4">0.00</span><span class="unit" id="u4">Re</span></div>
       </div>
       <div class="readout">
         <div class="k">Mesh elements</div>
@@ -435,11 +443,13 @@
     </div>
   </div>
 
-  <div class="footnote">
-    This page renders an illustrative traveling-wave heightfield shaped by the sliders above —
-    it is <strong>not</strong> connected to Goma's actual Newton/FEM solver or to real Exodus output.
-    It's a stand-in for the "see the physics move" GUI, built to sit alongside the real
-    program while a proper results viewer (reading actual Goma output files) is scoped.
+  <div class="footnote" id="footnote">
+    Both problem types render an illustrative surface shaped by the sliders above —
+    they are <strong>not</strong> connected to Goma's actual Newton/FEM solver or to real
+    Exodus output. They're a stand-in for the "see the physics move" GUI, covering two of
+    the classic free/moving-boundary problem classes Goma solves (thin-film coating flows,
+    and wetting/contact-angle problems), built to sit alongside the real program while a
+    proper results viewer (reading actual Goma output files) is scoped.
     See <a href="../BUILD.md">BUILD.md</a> for building the real solver.
   </div>
 </div>
@@ -457,24 +467,23 @@
 
   var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  var mode = "film"; // "film" | "drop"
+
   var params = { flow: 0.5, visc: 0.4, tens: 0.5, cang: 0.5 };
   var camera = { azimuth: -0.55, elevation: 0.62, distance: 5.2 };
   var defaultCamera = { azimuth: -0.55, elevation: 0.62, distance: 5.2 };
 
-  var NX = 26, NZ = 12;
+  var NX = 26, NZ = 24;
   var W = 900, H = 560, CX = W / 2, CY = H / 2 + 40;
   var FOCAL = 5.5;
   var VIEW_SCALE = 210;
+  var viewScaleDynamic = VIEW_SCALE;
+  var REF_EXTENT = 0.75;
 
   var verts = [];
   for (var i = 0; i <= NX; i++) {
     for (var j = 0; j <= NZ; j++) {
-      verts.push({
-        i: i, j: j,
-        x: (i / NX) * 2 - 1,
-        z: (j / NZ) - 0.5,
-        y: 0
-      });
+      verts.push({ i: i, j: j, u: i / NX, v: j / NZ, x: 0, y: 0, z: 0 });
     }
   }
   function vIndex(i, j) { return i * (NZ + 1) + j; }
@@ -505,6 +514,12 @@
   basePath.setAttribute("fill", "none");
   gridLayer.appendChild(basePath);
 
+  var footprintPath = document.createElementNS(svgNS, "path");
+  footprintPath.setAttribute("stroke", "rgba(255,138,61,0.55)");
+  footprintPath.setAttribute("stroke-dasharray", "2 3");
+  footprintPath.setAttribute("fill", "none");
+  gridLayer.appendChild(footprintPath);
+
   var flowArrow = document.createElementNS(svgNS, "path");
   flowArrow.setAttribute("stroke", "var(--accent-dim)");
   flowArrow.setAttribute("stroke-width", "1.4");
@@ -522,7 +537,6 @@
   flowLabel.setAttribute("fill", "#8293a8");
   flowLabel.setAttribute("font-family", "ui-monospace, monospace");
   flowLabel.setAttribute("font-size", "12");
-  flowLabel.textContent = "flow →";
   axisLayer.appendChild(flowLabel);
 
   function project(x, y, z) {
@@ -534,8 +548,8 @@
     var z2 = y * se + z1 * ce + camera.distance;
     var scale = FOCAL / Math.max(z2, 0.2);
     return {
-      sx: CX + x1 * scale * VIEW_SCALE,
-      sy: CY - y2 * scale * VIEW_SCALE,
+      sx: CX + x1 * scale * viewScaleDynamic,
+      sy: CY - y2 * scale * viewScaleDynamic,
       depth: z2
     };
   }
@@ -562,7 +576,8 @@
     return "rgb(192,57,43)";
   }
 
-  function heightAt(x, z, t) {
+  // ---------------------------------------------------------- film model --
+  function heightFilm(x, z, t) {
     var mu = params.visc, sigma = params.tens, Q = params.flow, theta = params.cang;
     var speed = 0.25 + 0.65 * Q;
     var damp1 = Math.exp(-mu * 2.1);
@@ -574,6 +589,43 @@
     var meniscus = -0.10 * wetSign * (1 - sigma * 0.6) * edge / 3.0;
     var mean = 0.10 + 0.16 * Q;
     return mean + wave1 + wave2 + meniscus;
+  }
+
+  // ------------------------------------------------------- droplet model --
+  var drop = {};
+  function updateDropConstants() {
+    var V = params.flow, mu = params.visc, sigma = params.tens, cangN = params.cang;
+    drop.footprintR = 0.35 + 0.55 * V;
+    drop.thetaDeg = 20 + cangN * 120;
+    var thetaRad = drop.thetaDeg * Math.PI / 180;
+    drop.thetaRad = thetaRad;
+    drop.capHeight = Math.min(drop.footprintR * Math.tan(thetaRad / 2), drop.footprintR * 1.6);
+    var s = Math.sin(thetaRad);
+    drop.sphereR = Math.abs(s) > 0.02 ? drop.footprintR / s : drop.footprintR * 50;
+    drop.oscAmp = 0.05 * (1 - Math.min(0.95, mu * 0.8)) * (1 - sigma * 0.7);
+    drop.oscFreq = 0.4 + 1.2 * sigma;
+  }
+  function heightDrop(rNorm, t) {
+    var r = rNorm * drop.footprintR;
+    var under = drop.sphereR * drop.sphereR - r * r;
+    var base = Math.sqrt(Math.max(0, under)) - (drop.sphereR - drop.capHeight);
+    var osc = 1 + drop.oscAmp * Math.sin(2 * Math.PI * drop.oscFreq * t);
+    return Math.max(0, base) * osc;
+  }
+
+  function computeVertex(vt, t) {
+    if (mode === "film") {
+      vt.x = vt.u * 2 - 1;
+      vt.z = vt.v - 0.5;
+      vt.y = heightFilm(vt.x, vt.z, t);
+    } else {
+      var theta = vt.v * 2 * Math.PI;
+      var r = vt.u;
+      vt.y = heightDrop(r, t);
+      var actualR = r * drop.footprintR;
+      vt.x = actualR * Math.cos(theta);
+      vt.z = actualR * Math.sin(theta);
+    }
   }
 
   var running = !reduceMotion;
@@ -588,14 +640,23 @@
 
     var t0 = performance.now();
 
+    if (mode === "drop") updateDropConstants();
+
     var minH = Infinity, maxH = -Infinity;
     for (var v = 0; v < verts.length; v++) {
       var vt = verts[v];
-      vt.y = heightAt(vt.x, vt.z, simTime);
+      computeVertex(vt, simTime);
       if (vt.y < minH) minH = vt.y;
       if (vt.y > maxH) maxH = vt.y;
-      var pr = project(vt.x, vt.y, vt.z);
-      vt.sx = pr.sx; vt.sy = pr.sy; vt.depth = pr.depth;
+    }
+
+    var extentY = Math.max(Math.abs(minH), Math.abs(maxH), REF_EXTENT * 0.4);
+    viewScaleDynamic = VIEW_SCALE * Math.min(1, REF_EXTENT / extentY);
+
+    for (var v2 = 0; v2 < verts.length; v2++) {
+      var vt2 = verts[v2];
+      var pr = project(vt2.x, vt2.y, vt2.z);
+      vt2.sx = pr.sx; vt2.sy = pr.sy; vt2.depth = pr.depth;
     }
 
     var order = quads.map(function (_, idx) { return idx; });
@@ -625,32 +686,65 @@
     }
     meshLayer.appendChild(frag);
 
-    var c00 = project(-1, 0, -0.5), c10 = project(1, 0, -0.5);
-    var c11 = project(1, 0, 0.5), c01 = project(-1, 0, 0.5);
-    basePath.setAttribute("d",
-      "M" + c00.sx.toFixed(1) + "," + c00.sy.toFixed(1) +
-      " L" + c10.sx.toFixed(1) + "," + c10.sy.toFixed(1) +
-      " L" + c11.sx.toFixed(1) + "," + c11.sy.toFixed(1) +
-      " L" + c01.sx.toFixed(1) + "," + c01.sy.toFixed(1) + " Z"
-    );
+    if (mode === "film") {
+      var c00 = project(-1, 0, -0.5), c10 = project(1, 0, -0.5);
+      var c11 = project(1, 0, 0.5), c01 = project(-1, 0, 0.5);
+      basePath.setAttribute("d",
+        "M" + c00.sx.toFixed(1) + "," + c00.sy.toFixed(1) +
+        " L" + c10.sx.toFixed(1) + "," + c10.sy.toFixed(1) +
+        " L" + c11.sx.toFixed(1) + "," + c11.sy.toFixed(1) +
+        " L" + c01.sx.toFixed(1) + "," + c01.sy.toFixed(1) + " Z"
+      );
+      footprintPath.setAttribute("d", "");
 
-    var aStart = project(-1.05, maxH + 0.05, -0.62);
-    var aEnd = project(-0.55, maxH + 0.05, -0.62);
-    flowArrow.setAttribute("d",
-      "M" + aStart.sx.toFixed(1) + "," + aStart.sy.toFixed(1) +
-      " L" + aEnd.sx.toFixed(1) + "," + aEnd.sy.toFixed(1)
-    );
-    flowLabel.setAttribute("x", (aEnd.sx + 6).toFixed(1));
-    flowLabel.setAttribute("y", (aEnd.sy + 4).toFixed(1));
+      var aStart = project(-1.05, maxH + 0.05, -0.62);
+      var aEnd = project(-0.55, maxH + 0.05, -0.62);
+      flowArrow.setAttribute("d",
+        "M" + aStart.sx.toFixed(1) + "," + aStart.sy.toFixed(1) +
+        " L" + aEnd.sx.toFixed(1) + "," + aEnd.sy.toFixed(1)
+      );
+      flowLabel.setAttribute("x", (aEnd.sx + 6).toFixed(1));
+      flowLabel.setAttribute("y", (aEnd.sy + 4).toFixed(1));
+      flowLabel.textContent = "flow →";
+    } else {
+      var b = 1.05;
+      var bc00 = project(-b, 0, -b), bc10 = project(b, 0, -b);
+      var bc11 = project(b, 0, b), bc01 = project(-b, 0, b);
+      basePath.setAttribute("d",
+        "M" + bc00.sx.toFixed(1) + "," + bc00.sy.toFixed(1) +
+        " L" + bc10.sx.toFixed(1) + "," + bc10.sy.toFixed(1) +
+        " L" + bc11.sx.toFixed(1) + "," + bc11.sy.toFixed(1) +
+        " L" + bc01.sx.toFixed(1) + "," + bc01.sy.toFixed(1) + " Z"
+      );
 
-    var speed = 0.25 + 0.65 * params.flow;
-    var Ca = (params.visc * (0.2 + speed)) / Math.max(0.02, params.tens);
-    var Re = (1000 * (0.2 + speed) * (0.10 + 0.16 * params.flow)) / Math.max(0.02, params.visc * 8);
+      var ringN = 40, ringD = "";
+      for (var ri = 0; ri <= ringN; ri++) {
+        var rt = (ri / ringN) * 2 * Math.PI;
+        var rp = project(drop.footprintR * Math.cos(rt), 0.002, drop.footprintR * Math.sin(rt));
+        ringD += (ri === 0 ? "M" : " L") + rp.sx.toFixed(1) + "," + rp.sy.toFixed(1);
+      }
+      footprintPath.setAttribute("d", ringD);
+      flowArrow.setAttribute("d", "");
+      flowLabel.textContent = "";
+    }
 
-    document.getElementById("r-height").textContent = ((0.10 + 0.16 * params.flow) * 10).toFixed(2);
-    document.getElementById("r-speed").textContent = (speed * 8).toFixed(2);
-    document.getElementById("r-ca").textContent = Ca.toFixed(3);
-    document.getElementById("r-re").textContent = Re.toFixed(1);
+    if (mode === "film") {
+      var speed = 0.25 + 0.65 * params.flow;
+      var Ca = (params.visc * (0.2 + speed)) / Math.max(0.02, params.tens);
+      var Re = (1000 * (0.2 + speed) * (0.10 + 0.16 * params.flow)) / Math.max(0.02, params.visc * 8);
+      document.getElementById("r1").textContent = ((0.10 + 0.16 * params.flow) * 10).toFixed(2);
+      document.getElementById("r2").textContent = (speed * 8).toFixed(2);
+      document.getElementById("r3").textContent = Ca.toFixed(3);
+      document.getElementById("r4").textContent = Re.toFixed(1);
+    } else {
+      var aMeters = drop.footprintR * 0.01;
+      var sigmaActual = 0.02 + 0.06 * params.tens;
+      var Bo = (1000 * 9.81 * aMeters * aMeters) / sigmaActual;
+      document.getElementById("r1").textContent = (drop.footprintR * 10).toFixed(2);
+      document.getElementById("r2").textContent = (drop.capHeight * 10).toFixed(2);
+      document.getElementById("r3").textContent = drop.thetaDeg.toFixed(0);
+      document.getElementById("r4").textContent = Bo.toFixed(3);
+    }
 
     frameMs = frameMs * 0.9 + (performance.now() - t0) * 0.1;
     document.getElementById("r-ft").textContent = frameMs.toFixed(1);
@@ -672,8 +766,54 @@
   bindSlider("tens", "tens", "v-tens");
   bindSlider("cang", "cang", "v-cang");
 
+  var modeText = {
+    film: {
+      tag: "FSF", sub: "Free-Surface Film Flow — Preview Console",
+      flow: "Flow rate Q", visc: "Viscosity μ", tens: "Surface tension σ", cang: "Contact angle θ",
+      k1: "Mean film height", k2: "Wave speed", k3: "Capillary number", k4: "Reynolds number",
+      u1: "mm", u2: "mm/s", u3: "Ca", u4: "Re"
+    },
+    drop: {
+      tag: "DROP", sub: "Sessile Droplet / Wetting — Preview Console",
+      flow: "Droplet volume V", visc: "Viscosity μ", tens: "Surface tension σ", cang: "Contact angle θ",
+      k1: "Footprint radius", k2: "Cap height", k3: "Contact angle", k4: "Bond number",
+      u1: "mm", u2: "mm", u3: "deg", u4: "Bo"
+    }
+  };
+
+  function applyModeText() {
+    var mt = modeText[mode];
+    document.getElementById("mode-tag").textContent = mt.tag;
+    document.getElementById("mode-sub").textContent = mt.sub;
+    document.getElementById("lbl-flow").textContent = mt.flow;
+    document.getElementById("lbl-visc").textContent = mt.visc;
+    document.getElementById("lbl-tens").textContent = mt.tens;
+    document.getElementById("lbl-cang").textContent = mt.cang;
+    document.getElementById("k1").textContent = mt.k1;
+    document.getElementById("k2").textContent = mt.k2;
+    document.getElementById("k3").textContent = mt.k3;
+    document.getElementById("k4").textContent = mt.k4;
+    document.getElementById("u1").textContent = mt.u1;
+    document.getElementById("u2").textContent = mt.u2;
+    document.getElementById("u3").textContent = mt.u3;
+    document.getElementById("u4").textContent = mt.u4;
+  }
+  applyModeText();
+
+  var modeFilmBtn = document.getElementById("mode-film");
+  var modeDropBtn = document.getElementById("mode-drop");
+  function setMode(next) {
+    mode = next;
+    modeFilmBtn.classList.toggle("primary", mode === "film");
+    modeFilmBtn.setAttribute("aria-pressed", mode === "film" ? "true" : "false");
+    modeDropBtn.classList.toggle("primary", mode === "drop");
+    modeDropBtn.setAttribute("aria-pressed", mode === "drop" ? "true" : "false");
+    applyModeText();
+  }
+  modeFilmBtn.addEventListener("click", function () { setMode("film"); });
+  modeDropBtn.addEventListener("click", function () { setMode("drop"); });
+
   var playBtn = document.getElementById("btn-play");
-  var lamp = document.getElementById("lamp");
   playBtn.addEventListener("click", function () {
     running = !running;
     lastT = performance.now();
@@ -718,7 +858,7 @@
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
-    a.download = "goma-fsf-frame-" + Date.now() + ".svg";
+    a.download = "goma-" + mode + "-frame-" + Date.now() + ".svg";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
